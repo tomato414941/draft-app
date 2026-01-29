@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Pressable,
@@ -8,12 +8,18 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import type { ShareIntent } from "expo-share-intent";
 import { Draft } from "../types";
 import { createDraft, deleteDraft, getDrafts } from "../api/client";
 import { DraftItem } from "../components/DraftItem";
 import { LoadingOverlay } from "../components/LoadingOverlay";
 
-export function HomeScreen() {
+interface Props {
+  shareIntent: ShareIntent | null;
+  onShareIntentProcessed: () => void;
+}
+
+export function HomeScreen({ shareIntent, onShareIntentProcessed }: Props) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [generating, setGenerating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,6 +36,39 @@ export function HomeScreen() {
   useEffect(() => {
     fetchDrafts();
   }, [fetchDrafts]);
+
+  // Handle share intent from other apps
+  const processingRef = useRef(false);
+  useEffect(() => {
+    if (!shareIntent || !shareIntent.files || shareIntent.files.length === 0) {
+      return;
+    }
+    if (processingRef.current) {
+      return;
+    }
+
+    const file = shareIntent.files[0];
+    if (!file.path || !file.mimeType.startsWith("image/")) {
+      onShareIntentProcessed();
+      return;
+    }
+
+    processingRef.current = true;
+    (async () => {
+      setGenerating(true);
+      try {
+        const newDraft = await createDraft(file.path, file.mimeType);
+        setDrafts((prev) => [newDraft, ...prev]);
+      } catch (error) {
+        console.error("Failed to generate draft from shared image:", error);
+        alert("投稿文の生成に失敗しました");
+      } finally {
+        setGenerating(false);
+        processingRef.current = false;
+        onShareIntentProcessed();
+      }
+    })();
+  }, [shareIntent, onShareIntentProcessed]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
