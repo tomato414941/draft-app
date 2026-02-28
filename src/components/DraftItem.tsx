@@ -9,8 +9,9 @@ import {
   View,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Draft } from "../types";
+import { Draft, SNS_LIST } from "../types";
 import { updateDraft } from "../api/client";
+import { shareToSns } from "../utils/share";
 
 interface Props {
   draft: Draft;
@@ -23,9 +24,20 @@ export function DraftItem({ draft, onDelete, onUpdate }: Props) {
   const [content, setContent] = useState(draft.content);
   const [saving, setSaving] = useState(false);
 
+  const snsInfo = SNS_LIST.find((s) => s.id === draft.target_sns) || SNS_LIST[0];
+
   const handleCopy = async () => {
     await Clipboard.setStringAsync(draft.content);
     Alert.alert("コピーしました", "クリップボードにコピーしました");
+  };
+
+  const handleShare = async () => {
+    try {
+      await shareToSns({ content: draft.content, targetSns: draft.target_sns });
+    } catch (error) {
+      console.error("Share failed:", error);
+      Alert.alert("エラー", "シェアに失敗しました");
+    }
   };
 
   const handleSave = async () => {
@@ -64,11 +76,34 @@ export function DraftItem({ draft, onDelete, onUpdate }: Props) {
     });
   };
 
+  const getSourceIcon = () => {
+    switch (draft.source_type) {
+      case "image":
+        return "📷";
+      case "text":
+        return "✏️";
+      case "url":
+        return "🔗";
+      default:
+        return "📷";
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Image source={{ uri: draft.image_url }} style={styles.image} />
+      {draft.image_url && (
+        <Image source={{ uri: draft.image_url }} style={styles.image} />
+      )}
 
       <View style={styles.content}>
+        <View style={styles.metaRow}>
+          <View style={styles.snsBadge}>
+            <Text style={styles.snsIcon}>{snsInfo.icon}</Text>
+            <Text style={styles.snsName}>{snsInfo.name}</Text>
+          </View>
+          <Text style={styles.sourceIcon}>{getSourceIcon()}</Text>
+        </View>
+
         {editing ? (
           <TextInput
             style={styles.input}
@@ -79,6 +114,12 @@ export function DraftItem({ draft, onDelete, onUpdate }: Props) {
           />
         ) : (
           <Text style={styles.text}>{draft.content}</Text>
+        )}
+
+        {draft.source_url && (
+          <Text style={styles.sourceUrl} numberOfLines={1}>
+            {draft.source_url}
+          </Text>
         )}
 
         <Text style={styles.date}>{formatDate(draft.created_at)}</Text>
@@ -107,6 +148,14 @@ export function DraftItem({ draft, onDelete, onUpdate }: Props) {
             </>
           ) : (
             <>
+              <Pressable
+                style={[styles.actionButton, styles.shareButton]}
+                onPress={handleShare}
+              >
+                <Text style={styles.shareButtonText}>
+                  {snsInfo.icon} シェア
+                </Text>
+              </Pressable>
               <Pressable style={styles.actionButton} onPress={handleCopy}>
                 <Text style={styles.actionText}>コピー</Text>
               </Pressable>
@@ -129,65 +178,101 @@ export function DraftItem({ draft, onDelete, onUpdate }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff",
+    backgroundColor: "#1c1c1e",
     borderRadius: 16,
     marginBottom: 16,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   image: {
     width: "100%",
     height: 200,
-    backgroundColor: "#eee",
+    backgroundColor: "#2c2c2e",
   },
   content: {
     padding: 16,
   },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  snsBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2c2c2e",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  snsIcon: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  snsName: {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: "600",
+  },
+  sourceIcon: {
+    fontSize: 16,
+  },
   text: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#333",
+    color: "#fff",
   },
   input: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#333",
+    color: "#fff",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#3a3a3c",
     borderRadius: 8,
     padding: 12,
     minHeight: 100,
     textAlignVertical: "top",
+    backgroundColor: "#2c2c2e",
+  },
+  sourceUrl: {
+    fontSize: 12,
+    color: "#0a84ff",
+    marginTop: 8,
   },
   date: {
     fontSize: 12,
-    color: "#999",
+    color: "#8e8e93",
     marginTop: 12,
   },
   actions: {
     flexDirection: "row",
     marginTop: 12,
     gap: 8,
+    flexWrap: "wrap",
   },
   actionButton: {
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#2c2c2e",
   },
   actionText: {
     fontSize: 14,
-    color: "#666",
+    color: "#8e8e93",
   },
   deleteText: {
-    color: "#ff3b30",
+    color: "#ff453a",
+  },
+  shareButton: {
+    backgroundColor: "#0a84ff",
+  },
+  shareButtonText: {
+    fontSize: 14,
+    color: "#fff",
+    fontWeight: "600",
   },
   saveButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#0a84ff",
   },
   saveButtonText: {
     fontSize: 14,

@@ -2,6 +2,7 @@
   "expo": {
     "name": "Draft",
     "slug": "draft-app",
+    "scheme": "draft",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -33,11 +34,23 @@
         "expo-share-intent",
         {
           "iosActivationRules": {
-            "NSExtensionActivationSupportsImageWithMaxCount": 1
+            "NSExtensionActivationSupportsImageWithMaxCount": 1,
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1
           },
-          "androidIntentFilters": ["image/*"]
+          "androidIntentFilters": [
+            "image/*",
+            "text/plain",
+            "text/*"
+          ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6edb6b27-02ff-4de7-813c-6b730539a7a9"
+      }
+    },
+    "owner": "tomato414941"
   }
 }
